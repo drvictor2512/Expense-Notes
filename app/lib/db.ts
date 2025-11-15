@@ -49,3 +49,10 @@ export async function initDB(): Promise<void> {
     console.log('Bảng expenses đã sẵn sàng')
     await seedSampleData()
 }
+
+export async function getAllExpenses(): Promise<any[]> {
+    if (!db) {
+        throw new Error('Database not initialized')
+    }
+    return await db.getAllAsync('SELECT * FROM expenses ORDER BY created_at DESC')
+}
