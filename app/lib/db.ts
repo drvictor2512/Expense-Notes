@@ -1,6 +1,29 @@
 import * as SQLite from 'expo-sqlite'
 
 let db: any = null
+
+async function seedSampleData(): Promise<void> {
+    const result = await db.getAllAsync('SELECT COUNT(*) as count FROM expenses')
+    const count = result[0]?.count || 0
+
+    if (count === 0) {
+        const now = Date.now()
+        await db.runAsync(
+            'INSERT INTO expenses (title, amount, category, paid, created_at) VALUES (?, ?, ?, ?, ?)',
+            ['Cà phê', 30000, 'Ăn uống', 1, now]
+        )
+        await db.runAsync(
+            'INSERT INTO expenses (title, amount, category, paid, created_at) VALUES (?, ?, ?, ?, ?)',
+            ['Ăn trưa', 50000, 'Ăn uống', 1, now]
+        )
+        await db.runAsync(
+            'INSERT INTO expenses (title, amount, category, paid, created_at) VALUES (?, ?, ?, ?, ?)',
+            ['Xăng xe', 100000, 'Di chuyển', 1, now]
+        )
+        console.log('Đã seed 3 khoản chi tiêu mẫu')
+    }
+}
+
 export async function initDB(): Promise<void> {
     if (!db) {
         if ((SQLite as any).openDatabaseAsync) {
@@ -23,4 +46,6 @@ export async function initDB(): Promise<void> {
         );
     `)
 
+    console.log('Bảng expenses đã sẵn sàng')
+    await seedSampleData()
 }
