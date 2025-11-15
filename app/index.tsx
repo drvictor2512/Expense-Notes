@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { addExpense, deleteExpense, getAllExpenses, initDB, togglePaidStatus, updateExpense } from "./lib/db";
@@ -22,6 +22,7 @@ export default function Index() {
   const [newTitle, setNewTitle] = useState('');
   const [newAmount, setNewAmount] = useState('');
   const [newCategory, setNewCategory] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     loadExpenses();
@@ -43,6 +44,16 @@ export default function Index() {
   const formatAmount = (amount: number) => {
     return amount.toLocaleString('vi-VN') + 'đ';
   };
+
+  const filteredExpenses = useMemo(() => {
+    return expenses.filter(expense => {
+      return expense.title.toLowerCase().includes(searchQuery.toLowerCase());
+    });
+  }, [expenses, searchQuery]);
+
+  const handleSearchChange = useCallback((text: string) => {
+    setSearchQuery(text);
+  }, []);
 
   const handleAddExpense = async () => {
     if (!newTitle.trim()) {
@@ -191,12 +202,27 @@ export default function Index() {
           </TouchableOpacity>
         </View>
 
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Tìm kiếm theo tên..."
+            value={searchQuery}
+            onChangeText={handleSearchChange}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Ionicons name="close-circle" size={20} color="#999" />
+            </TouchableOpacity>
+          )}
+        </View>
+
         <FlatList
-          data={expenses}
+          data={filteredExpenses}
           renderItem={renderExpenseItem}
           keyExtractor={(item) => item.id.toString()}
           ListEmptyComponent={renderEmptyState}
-          contentContainerStyle={expenses.length === 0 ? styles.emptyList : undefined}
+          contentContainerStyle={filteredExpenses.length === 0 ? styles.emptyList : undefined}
         />
         <Modal
           animationType="slide"
@@ -303,6 +329,27 @@ const styles = StyleSheet.create({
     fontSize: 28,
     color: '#fff',
     fontWeight: '600',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: '#333',
   },
   loadingText: {
     textAlign: 'center',
