@@ -67,3 +67,11 @@ export async function addExpense(title: string, amount: number, category?: strin
         [title, amount, category || '', 1, now]
     )
 }
+
+export async function togglePaidStatus(id: number, currentPaid: number): Promise<void> {
+    if (!db) {
+        throw new Error('Database not initialized')
+    }
+    const newPaid = currentPaid === 1 ? 0 : 1
+    await db.runAsync('UPDATE expenses SET paid = ? WHERE id = ?', [newPaid, id])
+}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Alert, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { addExpense, getAllExpenses, initDB } from "./lib/db";
+import { addExpense, getAllExpenses, initDB, togglePaidStatus } from "./lib/db";
 
 interface Expense {
   id: number;
@@ -73,19 +73,35 @@ export default function Index() {
     setModalVisible(false);
   };
 
+  const handleTogglePaid = async (item: Expense) => {
+    try {
+      await togglePaidStatus(item.id, item.paid);
+      await loadExpenses();
+    } catch (error) {
+      console.error('Lỗi khi cập nhật trạng thái:', error);
+      Alert.alert('Lỗi', 'Không thể cập nhật trạng thái thanh toán');
+    }
+  };
+
   const renderExpenseItem = ({ item }: { item: Expense }) => (
-    <View style={styles.expenseItem}>
+    <TouchableOpacity
+      style={styles.expenseItem}
+      onPress={() => handleTogglePaid(item)}
+      activeOpacity={0.7}
+    >
       <View style={styles.expenseInfo}>
         <Text style={styles.title}>{item.title}</Text>
         <Text style={styles.category}>{item.category || 'Chưa phân loại'}</Text>
       </View>
       <View style={styles.expenseRight}>
         <Text style={styles.amount}>{formatAmount(item.amount)}</Text>
-        <Text style={[styles.paidStatus, item.paid ? styles.paid : styles.unpaid]}>
-          {item.paid ? '✓ Đã thanh toán' : '○ Chưa thanh toán'}
-        </Text>
+        <View style={[styles.paidBadge, item.paid ? styles.paidBadgeGreen : styles.paidBadgeOrange]}>
+          <Text style={styles.paidStatus}>
+            {item.paid ? '✓ Đã thanh toán' : '○ Chưa thanh toán'}
+          </Text>
+        </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   const renderEmptyState = () => (
@@ -269,11 +285,23 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#e74c3c',
-    marginBottom: 4,
+    marginBottom: 8,
+  },
+  paidBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  paidBadgeGreen: {
+    backgroundColor: '#d4edda',
+  },
+  paidBadgeOrange: {
+    backgroundColor: '#fff3cd',
   },
   paidStatus: {
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '600',
+    color: '#333',
   },
   paid: {
     color: '#27ae60',
