@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { FlatList, StyleSheet, Text, View } from "react-native";
+import { Alert, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { getAllExpenses, initDB } from "./lib/db";
+import { addExpense, getAllExpenses, initDB } from "./lib/db";
 
 interface Expense {
   id: number;
@@ -15,6 +15,10 @@ interface Expense {
 export default function Index() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newAmount, setNewAmount] = useState('');
+  const [newCategory, setNewCategory] = useState('');
 
   useEffect(() => {
     loadExpenses();
@@ -35,6 +39,38 @@ export default function Index() {
 
   const formatAmount = (amount: number) => {
     return amount.toLocaleString('vi-VN') + 'đ';
+  };
+
+  const handleAddExpense = async () => {
+    if (!newTitle.trim()) {
+      Alert.alert('Lỗi', 'Vui lòng nhập tiêu đề chi tiêu');
+      return;
+    }
+    const amount = parseFloat(newAmount);
+    if (isNaN(amount) || amount <= 0) {
+      Alert.alert('Lỗi', 'Vui lòng nhập số tiền hợp lệ (> 0)');
+      return;
+    }
+
+    try {
+      await addExpense(newTitle.trim(), amount, newCategory.trim());
+      setNewTitle('');
+      setNewAmount('');
+      setNewCategory('');
+      setModalVisible(false);
+      await loadExpenses();
+      Alert.alert('Thành công', 'Đã thêm khoản chi tiêu mới');
+    } catch (error) {
+      console.error('Lỗi khi thêm chi tiêu:', error);
+      Alert.alert('Lỗi', 'Không thể thêm khoản chi tiêu');
+    }
+  };
+
+  const handleCancelModal = () => {
+    setNewTitle('');
+    setNewAmount('');
+    setNewCategory('');
+    setModalVisible(false);
   };
 
   const renderExpenseItem = ({ item }: { item: Expense }) => (
@@ -71,7 +107,16 @@ export default function Index() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        <Text style={styles.header}>Danh sách chi tiêu</Text>
+        <View style={styles.headerContainer}>
+          <Text style={styles.header}>Danh sách chi tiêu</Text>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => setModalVisible(true)}
+          >
+            <Text style={styles.addButtonText}>+</Text>
+          </TouchableOpacity>
+        </View>
+
         <FlatList
           data={expenses}
           renderItem={renderExpenseItem}
@@ -79,6 +124,63 @@ export default function Index() {
           ListEmptyComponent={renderEmptyState}
           contentContainerStyle={expenses.length === 0 ? styles.emptyList : undefined}
         />
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={modalVisible}
+          onRequestClose={handleCancelModal}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Thêm chi tiêu mới</Text>
+
+              <Text style={styles.label}>
+                Tiêu đề <Text style={styles.required}>*</Text>
+              </Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Ví dụ: Cà phê"
+                value={newTitle}
+                onChangeText={setNewTitle}
+              />
+
+              <Text style={styles.label}>
+                Số tiền <Text style={styles.required}>*</Text>
+              </Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Ví dụ: 30000"
+                value={newAmount}
+                onChangeText={setNewAmount}
+                keyboardType="numeric"
+              />
+
+              <Text style={styles.label}>Danh mục (tùy chọn)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Ví dụ: Ăn uống"
+                value={newCategory}
+                onChangeText={setNewCategory}
+              />
+
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.button, styles.cancelButton]}
+                  onPress={handleCancelModal}
+                >
+                  <Text style={styles.cancelButtonText}>Hủy</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.button, styles.saveButton]}
+                  onPress={handleAddExpense}
+                >
+                  <Text style={styles.saveButtonText}>Lưu</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </View>
     </SafeAreaView>
   );
@@ -93,15 +195,38 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
-  header: {
-    fontSize: 24,
-    fontWeight: 'bold',
+  headerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 15,
-    color: '#333',
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
+  },
+  header: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  addButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#3498db',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  addButtonText: {
+    fontSize: 28,
+    color: '#fff',
+    fontWeight: '600',
   },
   loadingText: {
     textAlign: 'center',
@@ -169,5 +294,77 @@ const styles = StyleSheet.create({
   },
   emptyList: {
     flexGrow: 1,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: '85%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+    marginTop: 12,
+  },
+  required: {
+    color: '#e74c3c',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: '#f9f9f9',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 24,
+    gap: 12,
+  },
+  button: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#ecf0f1',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#7f8c8d',
+  },
+  saveButton: {
+    backgroundColor: '#3498db',
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
 });

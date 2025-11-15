@@ -56,3 +56,14 @@ export async function getAllExpenses(): Promise<any[]> {
     }
     return await db.getAllAsync('SELECT * FROM expenses ORDER BY created_at DESC')
 }
+
+export async function addExpense(title: string, amount: number, category?: string): Promise<void> {
+    if (!db) {
+        throw new Error('Database not initialized')
+    }
+    const now = Date.now()
+    await db.runAsync(
+        'INSERT INTO expenses (title, amount, category, paid, created_at) VALUES (?, ?, ?, ?, ?)',
+        [title, amount, category || '', 1, now]
+    )
+}
