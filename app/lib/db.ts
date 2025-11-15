@@ -92,3 +92,36 @@ export async function deleteExpense(id: number): Promise<void> {
     }
     await db.runAsync('DELETE FROM expenses WHERE id = ?', [id])
 }
+
+export async function checkDuplicateExpense(title: string, amount: number): Promise<boolean> {
+    if (!db) {
+        throw new Error('Database not initialized')
+    }
+    const result = await db.getAllAsync(
+        'SELECT COUNT(*) as count FROM expenses WHERE title = ? AND amount = ?',
+        [title, amount]
+    )
+    return result[0]?.count > 0
+}
+
+export async function importExpenses(expenses: Array<{ title: string; amount: number; category?: string }>): Promise<number> {
+    if (!db) {
+        throw new Error('Database not initialized')
+    }
+
+    let importedCount = 0
+    const now = Date.now()
+
+    for (const expense of expenses) {
+        const isDuplicate = await checkDuplicateExpense(expense.title, expense.amount)
+        if (!isDuplicate) {
+            await db.runAsync(
+                'INSERT INTO expenses (title, amount, category, paid, created_at) VALUES (?, ?, ?, ?, ?)',
+                [expense.title, expense.amount, expense.category || '', 1, now]
+            )
+            importedCount++
+        }
+    }
+
+    return importedCount
+}

@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { addExpense, deleteExpense, getAllExpenses, initDB, togglePaidStatus, updateExpense } from "./lib/db";
+import { addExpense, deleteExpense, getAllExpenses, importExpenses, initDB, togglePaidStatus, updateExpense } from "./lib/db";
 
 interface Expense {
   id: number;
@@ -16,6 +16,7 @@ interface Expense {
 export default function Index() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -143,6 +144,37 @@ export default function Index() {
     );
   };
 
+  const handleImportFromAPI = async () => {
+    setImporting(true);
+    try {
+      const response = await fetch('https://jsonplaceholder.typicode.com/posts?_limit=5');
+      if (!response.ok) {
+        throw new Error('Lỗi khi tải dữ liệu từ API');
+      }
+      const data = await response.json();
+
+      const vietnameseTitles = ['Cơm trưa', 'Ăn tối', 'Đi xe bus'];
+
+      const expensesToImport = data.map((item: any, index: number) => ({
+        title: vietnameseTitles[Math.floor(Math.random() * vietnameseTitles.length)],
+        amount: Math.floor(Math.random() * 100000) + 10000,
+        category: ['Ăn uống', 'Di chuyển', 'Giải trí', 'Mua sắm', 'Khác'][Math.floor(Math.random() * 5)]
+      }));
+
+      const importedCount = await importExpenses(expensesToImport);
+      await loadExpenses();
+
+      Alert.alert(
+        'Thành công'
+      );
+    } catch (error) {
+      console.error('Lỗi khi import từ API:', error);
+      Alert.alert('Lỗi', 'Không thể import dữ liệu từ API. Vui lòng kiểm tra kết nối mạng.');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const renderExpenseItem = ({ item }: { item: Expense }) => (
     <View style={styles.expenseItemContainer}>
       <TouchableOpacity
@@ -194,12 +226,25 @@ export default function Index() {
       <View style={styles.container}>
         <View style={styles.headerContainer}>
           <Text style={styles.header}>Danh sách chi tiêu</Text>
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={() => setModalVisible(true)}
-          >
-            <Text style={styles.addButtonText}>+</Text>
-          </TouchableOpacity>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity
+              style={styles.importButton}
+              onPress={handleImportFromAPI}
+              disabled={importing}
+            >
+              {importing ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons name="download-outline" size={20} color="#fff" />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={() => setModalVisible(true)}
+            >
+              <Text style={styles.addButtonText}>+</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.searchContainer}>
@@ -311,6 +356,23 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  importButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#27ae60',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
   },
   addButton: {
     width: 44,
