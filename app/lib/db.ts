@@ -85,3 +85,10 @@ export async function updateExpense(id: number, title: string, amount: number, c
         [title, amount, category || '', id]
     )
 }
+
+export async function deleteExpense(id: number): Promise<void> {
+    if (!db) {
+        throw new Error('Database not initialized')
+    }
+    await db.runAsync('DELETE FROM expenses WHERE id = ?', [id])
+}

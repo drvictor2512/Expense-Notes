@@ -1,7 +1,8 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from "react";
 import { Alert, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { addExpense, getAllExpenses, initDB, togglePaidStatus, updateExpense } from "./lib/db";
+import { addExpense, deleteExpense, getAllExpenses, initDB, togglePaidStatus, updateExpense } from "./lib/db";
 
 interface Expense {
   id: number;
@@ -104,26 +105,61 @@ export default function Index() {
     }
   };
 
+  const handleDeleteExpense = (item: Expense) => {
+    Alert.alert(
+      'Xác nhận xóa',
+      `Bạn có chắc muốn xóa "${item.title}"?\nSố tiền: ${formatAmount(item.amount)}`,
+      [
+        {
+          text: 'Hủy',
+          style: 'cancel',
+        },
+        {
+          text: 'Xóa',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteExpense(item.id);
+              await loadExpenses();
+              Alert.alert('Thành công', 'Đã xóa khoản chi tiêu');
+            } catch (error) {
+              console.error('Lỗi khi xóa chi tiêu:', error);
+              Alert.alert('Lỗi', 'Không thể xóa khoản chi tiêu');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const renderExpenseItem = ({ item }: { item: Expense }) => (
-    <TouchableOpacity
-      style={styles.expenseItem}
-      onPress={() => handleTogglePaid(item)}
-      onLongPress={() => handleEditExpense(item)}
-      activeOpacity={0.7}
-    >
-      <View style={styles.expenseInfo}>
-        <Text style={styles.title}>{item.title}</Text>
-        <Text style={styles.category}>{item.category || 'Chưa phân loại'}</Text>
-      </View>
-      <View style={styles.expenseRight}>
-        <Text style={styles.amount}>{formatAmount(item.amount)}</Text>
-        <View style={[styles.paidBadge, item.paid ? styles.paidBadgeGreen : styles.paidBadgeOrange]}>
-          <Text style={styles.paidStatus}>
-            {item.paid ? '✓ Đã thanh toán' : '○ Chưa thanh toán'}
-          </Text>
+    <View style={styles.expenseItemContainer}>
+      <TouchableOpacity
+        style={styles.expenseItem}
+        onPress={() => handleTogglePaid(item)}
+        onLongPress={() => handleEditExpense(item)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.expenseInfo}>
+          <Text style={styles.title}>{item.title}</Text>
+          <Text style={styles.category}>{item.category || 'Chưa phân loại'}</Text>
         </View>
-      </View>
-    </TouchableOpacity>
+        <View style={styles.expenseRight}>
+          <Text style={styles.amount}>{formatAmount(item.amount)}</Text>
+          <View style={[styles.paidBadge, item.paid ? styles.paidBadgeGreen : styles.paidBadgeOrange]}>
+            <Text style={styles.paidStatus}>
+              {item.paid ? '✓ Đã thanh toán' : '○ Chưa thanh toán'}
+            </Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.deleteButton}
+        onPress={() => handleDeleteExpense(item)}
+      >
+        <Ionicons name="trash-outline" size={24} color="#fff" />
+      </TouchableOpacity>
+    </View>
   );
 
   const renderEmptyState = () => (
@@ -274,11 +310,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
   },
-  expenseItem: {
-    backgroundColor: '#fff',
-    padding: 16,
+  expenseItemContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginHorizontal: 16,
     marginVertical: 8,
+  },
+  expenseItem: {
+    flex: 1,
+    backgroundColor: '#fff',
+    padding: 16,
     borderRadius: 8,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -288,6 +329,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
+  },
+  deleteButton: {
+    width: 50,
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#e74c3c',
+    borderRadius: 8,
+    marginLeft: 8,
   },
   expenseInfo: {
     flex: 1,
