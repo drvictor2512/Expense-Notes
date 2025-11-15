@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Alert, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { addExpense, getAllExpenses, initDB, togglePaidStatus } from "./lib/db";
+import { addExpense, getAllExpenses, initDB, togglePaidStatus, updateExpense } from "./lib/db";
 
 interface Expense {
   id: number;
@@ -16,6 +16,8 @@ export default function Index() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [newTitle, setNewTitle] = useState('');
   const [newAmount, setNewAmount] = useState('');
   const [newCategory, setNewCategory] = useState('');
@@ -53,16 +55,24 @@ export default function Index() {
     }
 
     try {
-      await addExpense(newTitle.trim(), amount, newCategory.trim());
+      if (editMode && editingExpense) {
+        await updateExpense(editingExpense.id, newTitle.trim(), amount, newCategory.trim());
+        Alert.alert('Thành công', 'Đã cập nhật khoản chi tiêu');
+      } else {
+        await addExpense(newTitle.trim(), amount, newCategory.trim());
+        Alert.alert('Thành công', 'Đã thêm khoản chi tiêu mới');
+      }
+
       setNewTitle('');
       setNewAmount('');
       setNewCategory('');
       setModalVisible(false);
+      setEditMode(false);
+      setEditingExpense(null);
       await loadExpenses();
-      Alert.alert('Thành công', 'Đã thêm khoản chi tiêu mới');
     } catch (error) {
-      console.error('Lỗi khi thêm chi tiêu:', error);
-      Alert.alert('Lỗi', 'Không thể thêm khoản chi tiêu');
+      console.error('Lỗi khi lưu chi tiêu:', error);
+      Alert.alert('Lỗi', 'Không thể lưu khoản chi tiêu');
     }
   };
 
@@ -71,6 +81,17 @@ export default function Index() {
     setNewAmount('');
     setNewCategory('');
     setModalVisible(false);
+    setEditMode(false);
+    setEditingExpense(null);
+  };
+
+  const handleEditExpense = (item: Expense) => {
+    setEditMode(true);
+    setEditingExpense(item);
+    setNewTitle(item.title);
+    setNewAmount(item.amount.toString());
+    setNewCategory(item.category || '');
+    setModalVisible(true);
   };
 
   const handleTogglePaid = async (item: Expense) => {
@@ -87,6 +108,7 @@ export default function Index() {
     <TouchableOpacity
       style={styles.expenseItem}
       onPress={() => handleTogglePaid(item)}
+      onLongPress={() => handleEditExpense(item)}
       activeOpacity={0.7}
     >
       <View style={styles.expenseInfo}>
@@ -148,7 +170,9 @@ export default function Index() {
         >
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Thêm chi tiêu mới</Text>
+              <Text style={styles.modalTitle}>
+                {editMode ? 'Chỉnh sửa chi tiêu' : 'Thêm chi tiêu mới'}
+              </Text>
 
               <Text style={styles.label}>
                 Tiêu đề <Text style={styles.required}>*</Text>
@@ -323,7 +347,7 @@ const styles = StyleSheet.create({
   emptyList: {
     flexGrow: 1,
   },
-  // Modal styles
+
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
